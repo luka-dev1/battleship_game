@@ -1,34 +1,48 @@
 import 'dart:math';
 
+import 'package:battle/models/ship.dart';
+
+import 'cell.dart';
+
 class Board {
   /// Used to generate random values.
   final rand = Random();
 
   /// 10 x 10 grid with all of the cells set to 0.
   /// (number 0 indicates that the cell is empty)
-  var grid = List.generate(10, (i) => List<int>.generate(10, (j) => 0));
+  var cells =
+      List.generate(10, (i) => List<Cell>.generate(10, (j) => Cell(i, j)));
 
-  /*void printGrid() {
+  /// Live ships still on the board
+  var ships = <Ship>[];
+
+  /*void printBoard() {
     for (int i = 0; i < 10; i++) {
-      print(grid[i]);
+      var row = "";
+      for (var cell in cells[i]) {
+        row += "${cell.value} ";
+      }
+      print(row);
     }
   }*/
 
   /// Populates the board with 5 different ships.
   void populate() {
-    grid = List.generate(10, (i) => List<int>.generate(10, (j) => 0));
+    /*cells =
+        List.generate(10, (i) => List<Cell>.generate(10, (j) => Cell(i, j)));*/
 
     /// List of available ships to place.
-    var ships = [2, 3, 3, 4, 5];
+    var shipLengths = [2, 3, 3, 4, 5];
 
-    for (int ship in ships) {
+    for (int shipLength in shipLengths) {
       /// Tries to place a ship on the board and keeps trying until successful.
-      placeShip(ship);
+      var ship = placeShip(shipLength);
+      ships.add(ship);
     }
   }
 
   /// Places a ship on the board.
-  void placeShip(int ship) {
+  Ship placeShip(int shipLength) {
     /// Randomly chooses initial spot to place the ship and places
     /// its coordinates into two variables: i and j.
     var initialSpot = chooseInitialSpot();
@@ -50,21 +64,25 @@ class Board {
     /// no other ship can be placed there.
     ///
     /// If there is no space, calls the function again.
-    var spaceExists = checkAvailableSpace(isHorizontal, ship, i, j);
+    var spaceExists = checkAvailableSpace(isHorizontal, shipLength, i, j);
     if (spaceExists) {
+      var shipCells = <Cell>[];
       if (isHorizontal) {
-        for (int k = j; k < ship + j; k++) {
-          grid[i][k] = 1;
+        for (int k = j; k < shipLength + j; k++) {
+          cells[i][k].setValue(1);
+          shipCells.add(cells[i][k]);
         }
-        fillSurroundings(isHorizontal, i, j, ship);
       } else {
-        for (int k = i; k < ship + i; k++) {
-          grid[k][j] = 1;
+        for (int k = i; k < shipLength + i; k++) {
+          cells[k][j].setValue(1);
+          shipCells.add(cells[k][j]);
         }
-        fillSurroundings(isHorizontal, i, j, ship);
       }
+      var newShip = Ship(shipCells, isHorizontal, shipLength);
+      fillSurroundings(newShip);
+      return newShip;
     } else {
-      placeShip(ship);
+      return placeShip(shipLength);
     }
   }
 
@@ -73,7 +91,7 @@ class Board {
   List<int> chooseInitialSpot() {
     var randI = rand.nextInt(10);
     var randJ = rand.nextInt(10);
-    if (grid[randI][randJ] == 0) {
+    if (cells[randI][randJ].value == 0) {
       return [randI, randJ];
     } else {
       return chooseInitialSpot();
@@ -83,10 +101,10 @@ class Board {
   /// If the ship fits on the board starting at the specified spot (i, j)
   /// and if there are no collisions with other ships returns true
   /// otherwise returns false;
-  bool checkAvailableSpace(bool isHorizontal, int ship, int i, int j) {
-    var shipFits = checkFit(isHorizontal, ship, i, j);
+  bool checkAvailableSpace(bool isHorizontal, int shipLength, int i, int j) {
+    var shipFits = checkFit(isHorizontal, shipLength, i, j);
     if (shipFits) {
-      var collisionExists = checkCollisions(isHorizontal, ship, i, j);
+      var collisionExists = checkCollisions(isHorizontal, shipLength, i, j);
       if (!collisionExists) {
         return true;
       }
@@ -100,15 +118,15 @@ class Board {
   /// Depending on the ship's orientation adds the length of
   /// the ship to the specified cell and checks if the ship
   /// fits on the board.
-  bool checkFit(bool isHorizontal, int ship, int i, int j) {
+  bool checkFit(bool isHorizontal, int shipLength, int i, int j) {
     if (isHorizontal) {
-      if (j + ship > 10) {
+      if (j + shipLength > 10) {
         return false;
       } else {
         return true;
       }
     } else {
-      if (i + ship > 10) {
+      if (i + shipLength > 10) {
         return false;
       } else {
         return true;
@@ -121,16 +139,16 @@ class Board {
   ///
   /// Starts at the chosen spot and checks all of the
   /// cells that the ship's length covers.
-  bool checkCollisions(bool isHorizontal, int ship, int i, int j) {
+  bool checkCollisions(bool isHorizontal, int shipLength, int i, int j) {
     if (isHorizontal) {
-      for (int k = j + 1; k < ship + j; k++) {
-        if (grid[i][k] != 0) {
+      for (int k = j + 1; k < shipLength + j; k++) {
+        if (cells[i][k].value != 0) {
           return true;
         }
       }
     } else {
-      for (int k = i + 1; k < ship + i; k++) {
-        if (grid[k][j] != 0) {
+      for (int k = i + 1; k < shipLength + i; k++) {
+        if (cells[k][j].value != 0) {
           return true;
         }
       }
@@ -139,210 +157,84 @@ class Board {
   }
 
   /// Fills the area around the ship.
-  ///
-  /// Ship's beginning is at the cell grid[i,j].
-  void fillSurroundings(bool isHorizontal, int i, int j, int ship) {
+  void fillSurroundings(Ship ship) {
     /// Based on the ship's orientation and position (eg. ship is at the end
     /// of the board), calculates the starting and
     /// ending position of the surrounding area.
-    if (isHorizontal) {
-      var startPos = j;
-      var endPos = j + ship - 1;
-      if (j - 1 >= 0) {
-        startPos = j - 1;
-        grid[i][startPos] = 2;
+    var shipStart = ship.cells.first;
+    var shipEnd = ship.cells.last;
+    if (ship.isHorizontal) {
+      var shipRow = ship.cells[0].i;
+      var startPos = shipStart.j;
+      var endPos = shipEnd.j;
+      if (startPos - 1 >= 0) {
+        startPos = shipStart.j - 1;
+        cells[shipRow][startPos].setValue(2);
       }
-      if (j + ship <= 9) {
-        endPos = j + ship;
-        grid[i][endPos] = 2;
+      if (endPos + 1 <= 9) {
+        endPos = shipEnd.j + 1;
+        cells[shipRow][endPos].setValue(2);
       }
 
       /// Fills out all of the cells with 2's indicating that
       /// no other ships can be placed here.
       for (int k = startPos; k <= endPos; k++) {
-        if (i - 1 >= 0) {
-          grid[i - 1][k] = 2;
+        if (shipRow - 1 >= 0) {
+          cells[shipRow - 1][k].setValue(2);
         }
-        if (i + 1 <= 9) {
-          grid[i + 1][k] = 2;
+        if (shipRow + 1 <= 9) {
+          cells[shipRow + 1][k].setValue(2);
         }
       }
     } else {
-      var startPos = i;
-      var endPos = i + ship - 1;
-      if (i - 1 >= 0) {
-        startPos = i - 1;
-        grid[startPos][j] = 2;
+      var shipColumn = ship.cells[0].j;
+      var startPos = shipStart.i;
+      var endPos = shipEnd.i;
+      if (startPos - 1 >= 0) {
+        startPos = shipStart.i - 1;
+        cells[startPos][shipColumn].setValue(2);
       }
-      if (i + ship <= 9) {
-        endPos = i + ship;
-        grid[endPos][j] = 2;
+      if (endPos + 1 <= 9) {
+        endPos = shipEnd.i + 1;
+        cells[endPos][shipColumn].setValue(2);
       }
       for (int k = startPos; k <= endPos; k++) {
-        if (j - 1 >= 0) {
-          grid[k][j - 1] = 2;
+        if (shipColumn - 1 >= 0) {
+          cells[k][shipColumn - 1].setValue(2);
         }
-        if (j + 1 <= 9) {
-          grid[k][j + 1] = 2;
-        }
-      }
-    }
-  }
-
-  /// Fills the area around the ship.
-  ///
-  /// We DON'T know the ship's beginning cell.
-  void fillSurroundingsTwo(bool isHorizontal, int i, int j) {
-    /// Calculates the starting and ending position of the ship.
-    var startPos = findStart(isHorizontal, i, j);
-    var endPos = findEnd(isHorizontal, i, j);
-
-    /// Fills out all of the cells with 2's indicating that
-    /// no other ships can be placed here.
-    if (isHorizontal) {
-      grid[i][startPos] = 2;
-      grid[i][endPos] = 2;
-      for (int k = startPos; k <= endPos; k++) {
-        if (i - 1 >= 0) {
-          grid[i - 1][k] = 2;
-        }
-        if (i + 1 <= 9) {
-          grid[i + 1][k] = 2;
+        if (shipColumn + 1 <= 9) {
+          cells[k][shipColumn + 1].setValue(2);
         }
       }
-    } else {
-      grid[startPos][j] = 2;
-      grid[endPos][j] = 2;
-      for (int k = startPos; k <= endPos; k++) {
-        if (j - 1 >= 0) {
-          grid[k][j - 1] = 2;
-        }
-        if (j + 1 <= 9) {
-          grid[k][j + 1] = 2;
-        }
-      }
-    }
-  }
-
-  /// Calculates the start of a ship depending on the orientation.
-  int findStart(bool isHorizontal, int i, int j) {
-    if (isHorizontal) {
-      while (j - 1 >= 0) {
-        j = j - 1;
-        if (grid[i][j] != 1 && grid[i][j] != 4) {
-          break;
-        }
-      }
-      return j;
-    } else {
-      while (i - 1 >= 0) {
-        i = i - 1;
-        if (grid[i][j] != 1 && grid[i][j] != 4) {
-          break;
-        }
-      }
-      return i;
-    }
-  }
-
-  /// Calculates the end of a ship depending on the orientation.
-  int findEnd(bool isHorizontal, int i, int j) {
-    if (isHorizontal) {
-      while (j + 1 <= 9) {
-        j = j + 1;
-        if (grid[i][j] != 1 && grid[i][j] != 4) {
-          break;
-        }
-      }
-      return j;
-    } else {
-      while (i + 1 <= 9) {
-        i = i + 1;
-        if (grid[i][j] != 1 && grid[i][j] != 4) {
-          break;
-        }
-      }
-      return i;
     }
   }
 
   /// Checks opponents guess.
   String checkGuess(int i, int j) {
     /// If the cell value is 1 the opponent guessed correctly.
-    if (grid[i][j] == 1) {
-      grid[i][j] = 4;
+    if (cells[i][j].value == 1) {
+      cells[i][j].setValue(4);
 
-      /// Checks if the ship is sunk after this Hit.
-      var didSink = checkIfSunk(i, j);
+      var ship = findShip(cells[i][j]);
+      var didSink = ship.takeHit();
       if (didSink) {
+        ships.remove(ship);
         return "Sink";
       } else {
         return "Hit";
       }
     } else {
-      grid[i][j] = 3;
+      cells[i][j].setValue(3);
       return "Miss";
     }
   }
 
-  /// Checks if the ship's orientation is horizontal by
-  /// checking if any of the neighbouring cells to the left
-  /// or right belong to the ship.
-  bool getOrientation(int i, int j) {
-    if (i - 1 >= 0) {
-      if (grid[i - 1][j] == 1 || grid[i - 1][j] == 4) {
-        return false;
+  Ship findShip(Cell cell) {
+    for (Ship ship in ships) {
+      if (ship.cells.contains(cell)) {
+        return ship;
       }
     }
-    if (i + 1 <= 9) {
-      if (grid[i + 1][j] == 1 || grid[i + 1][j] == 4) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /// Checks if the ship has sunk by checking if there are
-  /// any cells around the ship that still have value of 1.
-  ///
-  /// If there is such a cell the ship is still afloat.
-  bool checkIfSunk(int i, int j) {
-    var isHorizontal = getOrientation(i, j);
-    if (isHorizontal) {
-      while (j + 1 <= 9) {
-        j = j + 1;
-        if (grid[i][j] == 1) {
-          return false;
-        } else if (grid[i][j] != 4) {
-          break;
-        }
-      }
-      while (j - 1 >= 0) {
-        j = j - 1;
-        if (grid[i][j] == 1) {
-          return false;
-        } else if (grid[i][j] != 4) {
-          break;
-        }
-      }
-    } else {
-      while (i + 1 <= 9) {
-        i = i + 1;
-        if (grid[i][j] == 1) {
-          return false;
-        } else if (grid[i][j] != 4) {
-          break;
-        }
-      }
-      while (i - 1 >= 0) {
-        i = i - 1;
-        if (grid[i][j] == 1) {
-          return false;
-        } else if (grid[i][j] != 4) {
-          break;
-        }
-      }
-    }
-    return true;
+    throw Exception("No ships found!");
   }
 }

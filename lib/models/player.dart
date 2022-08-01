@@ -1,6 +1,9 @@
 import 'dart:math';
 
+import 'package:battle/models/ship.dart';
+
 import 'board.dart';
+import 'cell.dart';
 
 class Player {
   /// Used to generate random values.
@@ -27,77 +30,91 @@ class Player {
 
   /// Creates a new guess.
   bool guess(Board board) {
-    Guess currentGuess;
+    /// Stores new guess coordinates.
+    List<int> guessCell;
 
     /// Checks if the last guess was correct.
     ///
     /// If so, proceed to a calculated guess. Otherwise, do a random guess.
     if (lastHitGuess.didHit && !lastHitGuess.didSink) {
-      currentGuess = calculatedGuess(board, lastHitGuess.i, lastHitGuess.j);
+      guessCell = calculatedGuess(board);
     } else {
-      currentGuess = randomGuess(board);
+      guessCell = randomGuess(board);
     }
 
-    /// If the guess is correct, stores it, adds it to the guess chain
-    /// and checks if the guess has sunken opponents ship.
-    if (currentGuess.didHit) {
-      lastHitGuess = currentGuess;
+    /// Submits new guess coordinates.
+    var i = guessCell[0];
+    var j = guessCell[1];
+    var result = board.checkGuess(i, j);
+
+    /// If the guess is correct and has sunken a ship:
+    ///   - reduces number of ships to destroy.
+    ///   - resets lastHit guess.
+    ///   - clears current guess chain.
+    ///   - checks if there are no ships left to destroy.
+    ///   - fills surrounding area of the sunken ship on the guessBoard.
+    ///   - returns true.
+    if (result == "Sink") {
+      lastHitGuess = Guess(i, j, true, false);
       guessChain.add(lastHitGuess);
-      if (currentGuess.didSink) {
-        /// Subtracts the sunken ship's length from the ships
-        /// left to destroy.
-        shipsToDestroy -= guessChain.length;
-
-        /// If there are no ships left the player has won.
-        if (shipsToDestroy == 0) {
-          didWin = true;
-        }
-
-        /// Fills the surrounding area of the sunken ship indicating that
-        /// there is now other ship there.
-        var isHorizontal =
-            guessBoard.getOrientation(currentGuess.i, currentGuess.j);
-        guessBoard.fillSurroundingsTwo(
-            isHorizontal, currentGuess.i, currentGuess.j);
-
-        /// Resets last guess and the guess chain.
-        lastHitGuess = Guess(-1, -1, false, false);
-        guessChain.clear();
+      var ship = createShipFromChain(guessChain);
+      guessBoard.cells[i][j].setValue(4);
+      shipsToDestroy -= guessChain.length;
+      lastHitGuess = Guess(-1, -1, false, false);
+      guessChain.clear();
+      if (shipsToDestroy == 0) {
+        didWin = true;
       }
-
-      /// returns true if the guess was correct.
+      guessBoard.fillSurroundings(ship);
       return true;
-    } else {
+    }
+
+    /// If the guess is correct:
+    ///   - stores this guess as a lastHit guess.
+    ///   - ads this guess to a chain of hit guesses.
+    ///   - returns true.
+    else if (result == "Hit") {
+      guessBoard.cells[i][j].setValue(4);
+      lastHitGuess = Guess(i, j, true, false);
+      guessChain.add(lastHitGuess);
+      return true;
+    }
+
+    /// If the guess was incorrect returns false.
+    else {
+      guessBoard.cells[i][j].setValue(2);
       return false;
     }
   }
 
   /// Randomly guesses opponents ship position.
-  Guess randomGuess(Board board) {
+  List<int> randomGuess(Board board) {
     var i = rand.nextInt(10);
     var j = rand.nextInt(10);
-    if (guessBoard.grid[i][j] == 0) {
-      var result = board.checkGuess(i, j);
-      return checkResult(result, i, j);
+
+    /// If the cell with coordinates [i, j] is empty (value = 0),
+    /// return it.
+    if (guessBoard.cells[i][j].value == 0) {
+      return [i, j];
     } else {
       return randomGuess(board);
     }
   }
 
   /// Guesses opponents ship position based on the previous correct guess.
-  Guess calculatedGuess(Board board, int i, int j) {
+  List<int> calculatedGuess(Board board) {
     /// Finds neighbouring cell of the previous correct cell guessed.
-    List<int> neighbour = findNeighbour(i, j);
-    var newI = neighbour[0];
-    var newJ = neighbour[1];
+    List<int> neighbour = findNeighbour();
+    var i = neighbour[0];
+    var j = neighbour[1];
 
-    /// Submits a new guess.
-    var result = board.checkGuess(newI, newJ);
-    return checkResult(result, newI, newJ);
+    return [i, j];
   }
 
   /// Finds neighbouring cell of the previous correct cell guessed.
-  List<int> findNeighbour(int i, int j) {
+  List<int> findNeighbour() {
+    var i = lastHitGuess.i;
+    var j = lastHitGuess.j;
     try {
       List<int> newCell;
 
@@ -135,17 +152,17 @@ class Player {
   List<int> findHorizontal(int i, int j) {
     while (j - 1 >= 0) {
       j = j - 1;
-      if (guessBoard.grid[i][j] == 0) {
+      if (guessBoard.cells[i][j].value == 0) {
         return [i, j];
-      } else if (guessBoard.grid[i][j] == 2) {
+      } else if (guessBoard.cells[i][j].value == 2) {
         break;
       }
     }
     while (j + 1 <= 9) {
       j = j + 1;
-      if (guessBoard.grid[i][j] == 0) {
+      if (guessBoard.cells[i][j].value == 0) {
         return [i, j];
-      } else if (guessBoard.grid[i][j] == 2) {
+      } else if (guessBoard.cells[i][j].value == 2) {
         break;
       }
     }
@@ -156,40 +173,38 @@ class Player {
   List<int> findVertical(int i, int j) {
     while (i - 1 >= 0) {
       i = i - 1;
-      if (guessBoard.grid[i][j] == 0) {
+      if (guessBoard.cells[i][j].value == 0) {
         return [i, j];
-      } else if (guessBoard.grid[i][j] == 2) {
+      } else if (guessBoard.cells[i][j].value == 2) {
         break;
       }
     }
     while (i + 1 <= 9) {
       i = i + 1;
-      if (guessBoard.grid[i][j] == 0) {
+      if (guessBoard.cells[i][j].value == 0) {
         return [i, j];
-      } else if (guessBoard.grid[i][j] == 2) {
+      } else if (guessBoard.cells[i][j].value == 2) {
         break;
       }
     }
     return [-1, -1];
   }
 
-  /// Checks the opponents answer to the player's guess and returns a new
-  /// Guess object with the appropriate parameters.
-  Guess checkResult(String result, int i, int j) {
-    bool didHit = false;
-    bool didSink = false;
-    if (result == 'Sink') {
-      didHit = true;
-      didSink = true;
-      guessBoard.grid[i][j] = 1;
-    } else if (result == 'Hit') {
-      didHit = true;
-      guessBoard.grid[i][j] = 1;
-    } else {
-      guessBoard.grid[i][j] = 2;
+  Ship createShipFromChain(List<Guess> chain) {
+    var isHorizontal = false;
+    if (chain[0].i == chain[1].i) {
+      isHorizontal = true;
     }
-    //_guessBoard.printGrid();
-    return Guess(i, j, didHit, didSink);
+    if (isHorizontal) {
+      chain.sort((a, b) => a.j.compareTo(b.j));
+    } else {
+      chain.sort((a, b) => a.i.compareTo(b.i));
+    }
+    var cells = <Cell>[];
+    for (Guess guess in chain) {
+      cells.add(Cell(guess.i, guess.j));
+    }
+    return Ship(cells, isHorizontal, chain.length);
   }
 }
 

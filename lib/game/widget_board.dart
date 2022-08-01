@@ -25,7 +25,7 @@ class BoardUI extends StatelessWidget {
   }
 
   Widget _buildGridItem(Player player, int x, int y) {
-    switch (player.board.grid[x][y]) {
+    switch (player.board.cells[x][y].value) {
       case 0:
         return const Text('');
       case 1:
@@ -47,7 +47,7 @@ class BoardUI extends StatelessWidget {
           ),
         );
       default:
-        return Text(player.board.grid[x][y].toString());
+        return Text(player.board.cells[x][y].value.toString());
     }
   }
 
