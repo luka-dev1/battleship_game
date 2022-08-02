@@ -55,7 +55,7 @@ class Player {
     ///   - fills surrounding area of the sunken ship on the guessBoard.
     ///   - returns true.
     if (result == "Sink") {
-      lastHitGuess = Guess(i, j, true, false);
+      lastHitGuess = Guess(i, j, true, true);
       guessChain.add(lastHitGuess);
       var ship = createShipFromChain(guessChain);
       guessBoard.cells[i][j].setValue(4);
