@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:battle/game/widget_board.dart';
 import 'package:battle/game/widget_game_over.dart';
-import 'package:battle/widgets/custom_fab_extended.dart';
+import 'package:battle/widgets/buttons/custom_fab_extended.dart';
 import 'package:flutter/material.dart';
 
 import '../models/player.dart';
@@ -124,8 +124,8 @@ class _BattleScreenState extends State<BattleScreen> {
         child: Stack(
           children: [
             /// Places two boards on the screen, one for each player.
-            Padding(
-              padding: const EdgeInsets.all(8.0),
+            Container(
+              padding: const EdgeInsets.all(25.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

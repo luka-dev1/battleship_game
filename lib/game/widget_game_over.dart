@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/player.dart';
-import '../widgets/custom_fab.dart';
+import '../widgets/buttons/custom_fab.dart';
 
 class GameOver extends StatelessWidget {
   final Player playerOne;
