@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:battle/models/enums.dart';
 import 'package:battle/models/ship.dart';
 
 import 'cell.dart';
@@ -210,7 +211,7 @@ class Board {
   }
 
   /// Checks opponents guess.
-  String checkGuess(int i, int j) {
+  GuessStatus checkGuess(int i, int j) {
     /// If the cell value is 1 the opponent guessed correctly.
     if (cells[i][j].value == 1) {
       cells[i][j].setValue(4);
@@ -219,13 +220,13 @@ class Board {
       var didSink = ship.takeHit();
       if (didSink) {
         ships.remove(ship);
-        return "Sink";
+        return GuessStatus.sink;
       } else {
-        return "Hit";
+        return GuessStatus.hit;
       }
     } else {
       cells[i][j].setValue(3);
-      return "Miss";
+      return GuessStatus.miss;
     }
   }
 

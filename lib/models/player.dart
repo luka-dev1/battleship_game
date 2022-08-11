@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:battle/models/enums.dart';
 import 'package:battle/models/ship.dart';
 
 import 'board.dart';
@@ -54,7 +55,7 @@ class Player {
     ///   - checks if there are no ships left to destroy.
     ///   - fills surrounding area of the sunken ship on the guessBoard.
     ///   - returns true.
-    if (result == "Sink") {
+    if (result == GuessStatus.sink) {
       lastHitGuess = Guess(i, j, true, true);
       guessChain.add(lastHitGuess);
       var ship = createShipFromChain(guessChain);
@@ -73,7 +74,7 @@ class Player {
     ///   - stores this guess as a lastHit guess.
     ///   - ads this guess to a chain of hit guesses.
     ///   - returns true.
-    else if (result == "Hit") {
+    else if (result == GuessStatus.hit) {
       guessBoard.cells[i][j].setValue(4);
       lastHitGuess = Guess(i, j, true, false);
       guessChain.add(lastHitGuess);
